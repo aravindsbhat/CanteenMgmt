@@ -5,7 +5,6 @@ import {
   Clock, 
   Users, 
   Star, 
-  ShoppingCart,
   ArrowRight,
   CheckCircle
 } from 'lucide-react';
@@ -28,8 +27,8 @@ const LandingPage: React.FC = () => {
               </span>
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="#features" className="text-gray-500 hover:text-gray-900">
-                Features
+              <a href="#menu" className="text-gray-500 hover:text-gray-900">
+                Menu
               </a>
               <a href="#about" className="text-gray-500 hover:text-gray-900">
                 About
@@ -61,88 +60,75 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-              Delicious Food
-              <span className="text-orange-600 block">Made Simple</span>
+              Skip The Queue,
+              <span className="text-orange-600 block">Order Ahead!</span>
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Experience hassle-free canteen management with our modern platform. 
-              Order your favorite meals, track availability in real-time, and enjoy 
-              seamless food service like never before.
+              Pre-order your favorite canteen meals and pick them up between classes. 
+              No more waiting in long queues or missing out on your favorite dishes. 
+              Perfect for busy students who want fresh food, fast!
             </p>
+            
+            {/* Student Stats */}
+            <div className="flex flex-wrap justify-center gap-8 mb-8 text-sm text-gray-600">
+              <div className="flex items-center">
+                <Clock className="h-5 w-5 text-orange-600 mr-2" />
+                <span>Average pickup: 2 minutes</span>
+              </div>
+              <div className="flex items-center">
+                <Users className="h-5 w-5 text-orange-600 mr-2" />
+                <span>500+ students served daily</span>
+              </div>
+              <div className="flex items-center">
+                <Star className="h-5 w-5 text-orange-600 mr-2" />
+                <span>4.8/5 student rating</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto mb-8">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">₹80</div>
+                  <div className="text-sm text-gray-600">Avg. Meal Price</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">15+</div>
+                  <div className="text-sm text-gray-600">Daily Specials</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-orange-600">8AM</div>
+                  <div className="text-sm text-gray-600">Opens Daily</div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/register"
                 className="bg-orange-600 text-white px-8 py-4 rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center"
               >
-                Start Ordering Now
+                Start Pre-Ordering
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
               <Link
                 to="/menu"
                 className="border-2 border-orange-600 text-orange-600 px-8 py-4 rounded-lg hover:bg-orange-50 transition-colors flex items-center justify-center"
               >
-                View Menu
+                Today's Menu
                 <Utensils className="ml-2 h-5 w-5" />
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Our Canteen System?
-            </h2>
-            <p className="text-xl text-gray-600">
-              Built for modern food service with cutting-edge features
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="h-8 w-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Real-Time Availability
-              </h3>
-              <p className="text-gray-600">
-                See live updates on food availability and never face disappointment. 
-                Know exactly what's available before you order.
-              </p>
-            </div>
-
-            <div className="text-center p-6">
-              <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ShoppingCart className="h-8 w-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Easy Ordering
-              </h3>
-              <p className="text-gray-600">
-                Simple, intuitive interface makes ordering your favorite meals 
-                quick and effortless. Add to cart and checkout in seconds.
-              </p>
-            </div>
-
-            <div className="text-center p-6">
-              <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="h-8 w-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Admin Dashboard
-              </h3>
-              <p className="text-gray-600">
-                Comprehensive admin panel for managing menu items, tracking orders, 
-                and monitoring canteen operations efficiently.
-              </p>
+            {/* Pro Tip */}
+            <div className="mt-8 inline-flex items-center bg-orange-50 text-orange-800 px-4 py-2 rounded-full text-sm">
+              <span className="font-semibold mr-2">💡 Pro Tip:</span>
+              Order during your first class and pick up fresh food during break!
             </div>
           </div>
         </div>
       </section>
+
+
 
       {/* Menu Preview Section */}
       <section className="py-20 bg-gray-50">
@@ -197,20 +183,20 @@ const LandingPage: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6">
-                Experience the Future of Canteen Service
+                Why Students Love SXEC Canteen
               </h2>
               <p className="text-lg text-gray-600 mb-8">
-                Our platform revolutionizes how you interact with canteen services. 
-                From seamless ordering to real-time updates, we've got everything covered.
+                More than just a place to grab food, our canteen is the heart of campus life. 
+                Fresh ingredients, affordable prices, and a menu that actually understands what students want.
               </p>
               
               <div className="space-y-4">
                 {[
-                  'Real-time menu availability updates',
-                  'Secure user authentication & profiles',
-                  'Order tracking and history',
-                  'Admin dashboard for complete control',
-                  'Mobile-friendly responsive design'
+                  'Fresh meals prepared daily by experienced chefs',
+                  'Student-friendly pricing that fits your budget',
+                  'Diverse menu catering to all dietary preferences',
+                  'Hygienic kitchen with quality ingredients',
+                  'Quick service designed for busy class schedules'
                 ].map((benefit, index) => (
                   <div key={index} className="flex items-center">
                     <CheckCircle className="h-6 w-6 text-green-500 mr-3" />
@@ -226,16 +212,16 @@ const LandingPage: React.FC = () => {
                   <Utensils className="h-12 w-12 text-orange-600" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  Ready to Get Started?
+                  Hungry? We've Got You!
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Join hundreds of satisfied customers who have transformed their canteen experience.
+                  Join your fellow students who trust SXEC Canteen for delicious, affordable meals every day.
                 </p>
                 <Link
                   to="/register"
                   className="bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors inline-block"
                 >
-                  Create Your Account
+                  Start Ordering Today
                 </Link>
               </div>
             </div>
