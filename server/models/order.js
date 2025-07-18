@@ -25,7 +25,16 @@ export default (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         defaultValue: "pending",
         validate: {
-          isIn: [["pending", "preparing", "ready", "completed", "cancelled"]],
+          isIn: [
+            [
+              "pending",
+              "confirmed",
+              "preparing",
+              "ready",
+              "delivered",
+              "cancelled",
+            ],
+          ],
         },
       },
     },

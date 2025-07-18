@@ -14,7 +14,8 @@ export interface MenuItem {
   price: number;
   category: string;
   available: number;
-  image: string;
+  prepTime: number;
+  image?: string;
 }
 
 export interface OrderItem {
@@ -41,15 +42,18 @@ export interface CartItem {
   id: string;
   name: string;
   price: number;
+  category: string;
+  available: number;
+  prepTime: number;
+  image?: string;
   quantity: number;
-  image: string;
 }
 
 export interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -80,7 +84,7 @@ export interface LoginResponse {
 
 export interface OrderRequest {
   items: Array<{
-    id: string;
+    menuItemId: string;
     quantity: number;
   }>;
 }

@@ -17,23 +17,26 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
+            <Link to="/" className="flex items-center space-x-2">
               <img 
                 src="/src/assets/SXEC canteen.png" 
                 alt="SXEC Canteen Logo" 
                 className="h-8 w-8 object-contain"
               />
-              <span className="ml-2 text-2xl font-bold text-gray-900">
+              
+              <span className="inline-flex items-center">
                 SXEC Canteen
               </span>
+              </Link>
             </div>
             <nav className="hidden md:flex space-x-8">
-              <a href="#menu" className="text-gray-500 hover:text-gray-900">
+              <a href="/menu" className="text-gray-500 hover:text-gray-900">
                 Menu
               </a>
-              <a href="#about" className="text-gray-500 hover:text-gray-900">
+              <a href="/about" className="text-gray-500 hover:text-gray-900">
                 About
               </a>
-              <a href="#contact" className="text-gray-500 hover:text-gray-900">
+              <a href="/contact" className="text-gray-500 hover:text-gray-900">
                 Contact
               </a>
             </nav>

@@ -9,8 +9,7 @@ module.exports = {
       [
         {
           email: "admin@canteen.com",
-          password:
-            "$2a$10$kStC1DLmns/Y.HYZi6mL/.APust2q3o6njMNh7Uxa6eMWnJEDDVzW", // password: admin123
+          password: "admin123", // Plain text password for development
           name: "Admin User",
           role: "admin",
           createdAt: new Date(),
@@ -18,8 +17,7 @@ module.exports = {
         },
         {
           email: "customer@example.com",
-          password:
-            "$2a$10$CQOJP6d4DDVI8DGkze/aQOFdyMCZDaLeq158E3c5aeg6cgwsRg97G", // password: customer123
+          password: "customer123", // Plain text password for development
           name: "John Doe",
           role: "customer",
           createdAt: new Date(),

@@ -1,9 +1,8 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Strategy as JwtStrategy, ExtractJwt } from "passport-jwt";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { getUserByEmail, getUserById, createUser } from "./data.js";
+import db from "./models/database.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "your-secret-key-change-this-in-production";
@@ -17,20 +16,22 @@ passport.use(
     },
     async (email, password, done) => {
       try {
-        const user = getUserByEmail(email);
+        const user = await db.User.findOne({
+          where: { email: email.toLowerCase() },
+        });
 
         if (!user) {
           return done(null, false, { message: "User not found" });
         }
 
-        const isValidPassword = await bcrypt.compare(password, user.password);
+        const isValidPassword = password === user.password;
 
         if (!isValidPassword) {
           return done(null, false, { message: "Invalid password" });
         }
 
         // Remove password from user object before returning
-        const { password: _, ...userWithoutPassword } = user;
+        const { password: _, ...userWithoutPassword } = user.toJSON();
         return done(null, userWithoutPassword);
       } catch (error) {
         return done(error);
@@ -48,10 +49,10 @@ passport.use(
     },
     async (payload, done) => {
       try {
-        const user = getUserById(payload.id);
+        const user = await db.User.findByPk(payload.id);
 
         if (user) {
-          const { password: _, ...userWithoutPassword } = user;
+          const { password: _, ...userWithoutPassword } = user.toJSON();
           return done(null, userWithoutPassword);
         }
 
@@ -69,11 +70,11 @@ passport.serializeUser((user, done) => {
 });
 
 // Deserialize user from session
-passport.deserializeUser((id, done) => {
+passport.deserializeUser(async (id, done) => {
   try {
-    const user = getUserById(id);
+    const user = await db.User.findByPk(id);
     if (user) {
-      const { password: _, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user.toJSON();
       done(null, userWithoutPassword);
     } else {
       done(null, false);

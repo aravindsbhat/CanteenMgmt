@@ -34,8 +34,8 @@ api.interceptors.request.use((config: any) => {
 api.interceptors.response.use(
   (response: any) => response,
   (error: any) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
+    if (error.response?.status === 401 && !error.config.url.includes('/menu')) {
+      // Token expired or invalid, but don't redirect for menu endpoints
       Cookies.remove('token');
       window.location.href = '/login';
     }

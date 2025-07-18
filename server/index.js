@@ -6,18 +6,7 @@ import session from "express-session";
 import passport from "./auth.js";
 import { verifyToken, requireAdmin, requireAuth } from "./auth.js";
 import authRoutes from "./routes/auth.js";
-import {
-  getMenuItems,
-  getMenuItemById,
-  getMenuItemsByCategory,
-  updateMenuItemAvailability,
-  decreaseMenuItemAvailability,
-  addOrder,
-  getOrders,
-  getOrderById,
-  updateOrderStatus,
-  getCategories,
-} from "./data.js";
+import db from "./models/database.js";
 
 // Load environment variables
 dotenv.config();
@@ -28,7 +17,10 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: [
+      process.env.CORS_ORIGIN || "http://localhost:3000",
+      "http://localhost:5173", // Vite default port
+    ],
     credentials: true,
   })
 );
@@ -58,171 +50,361 @@ app.use("/api/auth", authRoutes);
 // Routes
 
 // Get all menu items
-app.get("/api/menu", (req, res) => {
-  res.json(getMenuItems());
+app.get("/api/menu", async (req, res) => {
+  try {
+    const menuItems = await db.MenuItem.findAll();
+    res.json(menuItems);
+  } catch (error) {
+    console.error("Error fetching menu items:", error);
+    res.status(500).json({ error: "Failed to fetch menu items" });
+  }
 });
 
 // Get menu items by category
-app.get("/api/menu/category/:category", (req, res) => {
-  const { category } = req.params;
-  const filteredItems = getMenuItemsByCategory(category);
-  res.json(filteredItems);
+app.get("/api/menu/category/:category", async (req, res) => {
+  try {
+    const { category } = req.params;
+    const menuItems = await db.MenuItem.findAll({
+      where: { category },
+    });
+    res.json(menuItems);
+  } catch (error) {
+    console.error("Error fetching menu items by category:", error);
+    res.status(500).json({ error: "Failed to fetch menu items" });
+  }
 });
 
 // Get a specific menu item
-app.get("/api/menu/:id", (req, res) => {
-  const { id } = req.params;
-  const item = getMenuItemById(id);
+app.get("/api/menu/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await db.MenuItem.findByPk(id);
 
-  if (!item) {
-    return res.status(404).json({ error: "Menu item not found" });
+    if (!item) {
+      return res.status(404).json({ error: "Menu item not found" });
+    }
+
+    res.json(item);
+  } catch (error) {
+    console.error("Error fetching menu item:", error);
+    res.status(500).json({ error: "Failed to fetch menu item" });
   }
-
-  res.json(item);
 });
 
 // Update menu item availability (admin function)
-app.put("/api/menu/:id/availability", verifyToken, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const { available } = req.body;
+app.put(
+  "/api/menu/:id/availability",
+  verifyToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { available } = req.body;
 
-  if (typeof available !== "number" || available < 0) {
-    return res.status(400).json({ error: "Invalid availability value" });
+      if (typeof available !== "number" || available < 0) {
+        return res.status(400).json({ error: "Invalid availability value" });
+      }
+
+      const [updatedRows] = await db.MenuItem.update(
+        { available },
+        { where: { id } }
+      );
+
+      if (updatedRows === 0) {
+        return res.status(404).json({ error: "Menu item not found" });
+      }
+
+      const updatedItem = await db.MenuItem.findByPk(id);
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Error updating menu item availability:", error);
+      res.status(500).json({ error: "Failed to update menu item" });
+    }
   }
-
-  const updatedItem = updateMenuItemAvailability(id, available);
-
-  if (!updatedItem) {
-    return res.status(404).json({ error: "Menu item not found" });
-  }
-
-  res.json(updatedItem);
-});
+);
 
 // Place an order (requires authentication)
-app.post("/api/orders", verifyToken, (req, res) => {
-  const { items } = req.body;
-  const user = req.user;
+app.post("/api/orders", verifyToken, async (req, res) => {
+  const transaction = await db.sequelize.transaction();
 
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: "Invalid order items" });
-  }
+  try {
+    const { items } = req.body;
+    const user = req.user;
 
-  // Use authenticated user's information
-  const customerName = user.name;
-  const customerEmail = user.email;
-  const customerId = user.id;
-
-  // Validate and update availability
-  const orderItems = [];
-  let totalAmount = 0;
-
-  for (const orderItem of items) {
-    const menuItem = getMenuItemById(orderItem.id);
-
-    if (!menuItem) {
-      return res
-        .status(404)
-        .json({ error: `Menu item with id ${orderItem.id} not found` });
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      await transaction.rollback();
+      return res.status(400).json({ error: "Invalid order items" });
     }
 
-    if (menuItem.available < orderItem.quantity) {
-      return res.status(400).json({
-        error: `Insufficient quantity for ${menuItem.name}. Available: ${menuItem.available}, Requested: ${orderItem.quantity}`,
+    // Validate and update availability
+    const orderItems = [];
+    let totalAmount = 0;
+
+    for (const orderItem of items) {
+      const menuItem = await db.MenuItem.findByPk(orderItem.menuItemId, {
+        transaction,
       });
-    }
 
-    // Update availability using the helper function
-    if (!decreaseMenuItemAvailability(orderItem.id, orderItem.quantity)) {
-      return res.status(400).json({
-        error: `Failed to update availability for ${menuItem.name}`,
+      if (!menuItem) {
+        await transaction.rollback();
+        return res.status(404).json({
+          error: `Menu item with id ${orderItem.menuItemId} not found`,
+        });
+      }
+
+      if (menuItem.available < orderItem.quantity) {
+        await transaction.rollback();
+        return res.status(400).json({
+          error: `Insufficient quantity for ${menuItem.name}. Available: ${menuItem.available}, Requested: ${orderItem.quantity}`,
+        });
+      }
+
+      // Update availability
+      await menuItem.update(
+        { available: menuItem.available - orderItem.quantity },
+        { transaction }
+      );
+
+      // Add to order items
+      orderItems.push({
+        menuItemId: menuItem.id,
+        quantity: orderItem.quantity,
+        price: menuItem.price,
       });
+
+      totalAmount += menuItem.price * orderItem.quantity;
     }
 
-    // Add to order items
-    orderItems.push({
-      id: menuItem.id,
-      name: menuItem.name,
-      price: menuItem.price,
-      quantity: orderItem.quantity,
-      subtotal: menuItem.price * orderItem.quantity,
+    // Create order
+    const order = await db.Order.create(
+      {
+        userId: user.id,
+        total: totalAmount,
+        status: "confirmed",
+      },
+      { transaction }
+    );
+
+    // Create order items
+    for (const item of orderItems) {
+      await db.OrderItem.create(
+        {
+          orderId: order.id,
+          ...item,
+        },
+        { transaction }
+      );
+    }
+
+    await transaction.commit();
+
+    // Fetch the complete order with items and menu details
+    const completeOrder = await db.Order.findByPk(order.id, {
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.MenuItem,
+              as: "menuItem",
+              attributes: ["id", "name", "price"],
+            },
+          ],
+        },
+        {
+          model: db.User,
+          as: "user",
+          attributes: ["id", "name", "email"],
+        },
+      ],
     });
 
-    totalAmount += menuItem.price * orderItem.quantity;
+    res.status(201).json(completeOrder);
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error creating order:", error);
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    res.status(500).json({
+      error: "Failed to create order",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
-
-  // Create order
-  const order = {
-    id: uuidv4(),
-    customerId,
-    customerName,
-    customerEmail,
-    items: orderItems,
-    totalAmount,
-    status: "confirmed",
-    orderTime: new Date().toISOString(),
-    estimatedDelivery: new Date(Date.now() + 30 * 60000).toISOString(), // 30 minutes from now
-  };
-
-  const createdOrder = addOrder(order);
-  res.status(201).json(createdOrder);
 });
 
 // Get all orders (admin function)
-app.get("/api/orders", verifyToken, requireAdmin, (req, res) => {
-  res.json(getOrders());
+app.get("/api/orders", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const orders = await db.Order.findAll({
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.MenuItem,
+              as: "menuItem",
+              attributes: ["id", "name", "price"],
+            },
+          ],
+        },
+        {
+          model: db.User,
+          as: "user",
+          attributes: ["id", "name", "email"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(orders);
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
 });
 
 // Get user's own orders
-app.get("/api/orders/my-orders", verifyToken, (req, res) => {
-  const userOrders = getOrders().filter(
-    (order) => order.customerId === req.user.id
-  );
-  res.json(userOrders);
+app.get("/api/orders/my-orders", verifyToken, async (req, res) => {
+  try {
+    const orders = await db.Order.findAll({
+      where: { userId: req.user.id },
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.MenuItem,
+              as: "menuItem",
+              attributes: ["id", "name", "price"],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+    res.json(orders);
+  } catch (error) {
+    console.error("Error fetching user orders:", error);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
 });
 
 // Get order by ID
-app.get("/api/orders/:id", (req, res) => {
-  const { id } = req.params;
-  const order = getOrderById(id);
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await db.Order.findByPk(id, {
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.MenuItem,
+              as: "menuItem",
+              attributes: ["id", "name", "price"],
+            },
+          ],
+        },
+        {
+          model: db.User,
+          as: "user",
+          attributes: ["id", "name", "email"],
+        },
+      ],
+    });
 
-  if (!order) {
-    return res.status(404).json({ error: "Order not found" });
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    res.status(500).json({ error: "Failed to fetch order" });
   }
-
-  res.json(order);
 });
 
 // Update order status (admin function)
-app.put("/api/orders/:id/status", verifyToken, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
+app.put(
+  "/api/orders/:id/status",
+  verifyToken,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
 
-  const validStatuses = [
-    "confirmed",
-    "preparing",
-    "ready",
-    "delivered",
-    "cancelled",
-  ];
+      const validStatuses = [
+        "confirmed",
+        "preparing",
+        "ready",
+        "delivered",
+        "cancelled",
+      ];
 
-  if (!validStatuses.includes(status)) {
-    return res.status(400).json({ error: "Invalid status" });
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const [updatedRows] = await db.Order.update(
+        { status },
+        { where: { id } }
+      );
+
+      if (updatedRows === 0) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      const updatedOrder = await db.Order.findByPk(id, {
+        include: [
+          {
+            model: db.OrderItem,
+            as: "items",
+            include: [
+              {
+                model: db.MenuItem,
+                as: "menuItem",
+                attributes: ["id", "name", "price"],
+              },
+            ],
+          },
+          {
+            model: db.User,
+            as: "user",
+            attributes: ["id", "name", "email"],
+          },
+        ],
+      });
+
+      res.json(updatedOrder);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      res.status(500).json({ error: "Failed to update order status" });
+    }
   }
-
-  const updatedOrder = updateOrderStatus(id, status);
-
-  if (!updatedOrder) {
-    return res.status(404).json({ error: "Order not found" });
-  }
-
-  res.json(updatedOrder);
-});
+);
 
 // Get categories
-app.get("/api/categories", (req, res) => {
-  const categories = getCategories();
-  res.json(categories);
+app.get("/api/categories", async (req, res) => {
+  try {
+    const categories = await db.MenuItem.findAll({
+      attributes: [
+        [db.sequelize.fn("DISTINCT", db.sequelize.col("category")), "category"],
+      ],
+      raw: true,
+    });
+    res.json(categories.map((item) => item.category));
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
 });
 
 // Health check

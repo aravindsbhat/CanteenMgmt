@@ -1,14 +1,7 @@
 import express from "express";
-import bcrypt from "bcryptjs";
 import passport from "../auth.js";
 import { generateToken, verifyToken, requireAdmin } from "../auth.js";
-import {
-  getUserByEmail,
-  createUser,
-  getUsers,
-  getUserById,
-  updateUser,
-} from "../data.js";
+import db from "../models/database.js";
 
 const router = express.Router();
 
@@ -31,21 +24,19 @@ router.post("/register", async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = getUserByEmail(email);
+    const existingUser = await db.User.findOne({
+      where: { email: email.toLowerCase() },
+    });
     if (existingUser) {
       return res.status(400).json({
         error: "User with this email already exists",
       });
     }
 
-    // Hash password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Create user
-    const newUser = createUser({
+    // Create user with plain text password (for development)
+    const newUser = await db.User.create({
       email: email.toLowerCase(),
-      password: hashedPassword,
+      password: password, // Store plain text password for now
       name,
       role: role === "admin" ? "admin" : "customer", // Only allow admin if explicitly set
     });
@@ -54,7 +45,7 @@ router.post("/register", async (req, res) => {
     const token = generateToken(newUser);
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = newUser;
+    const { password: _, ...userWithoutPassword } = newUser.toJSON();
 
     res.status(201).json({
       message: "User registered successfully",
@@ -63,6 +54,27 @@ router.post("/register", async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
+
+    // Handle Sequelize validation errors
+    if (error.name === "SequelizeValidationError") {
+      const validationErrors = error.errors.map((err) => {
+        if (err.path === "email" && err.validatorKey === "isEmail") {
+          return "Please enter a valid email address";
+        }
+        return err.message;
+      });
+      return res.status(400).json({
+        error: validationErrors[0] || "Validation error",
+      });
+    }
+
+    // Handle unique constraint errors (duplicate email)
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(400).json({
+        error: "User with this email already exists",
+      });
+    }
+
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -113,7 +125,9 @@ router.put("/profile", verifyToken, async (req, res) => {
 
     // Check if email is already taken by another user
     if (email && email !== req.user.email) {
-      const existingUser = getUserByEmail(email);
+      const existingUser = await db.User.findOne({
+        where: { email: email.toLowerCase() },
+      });
       if (existingUser && existingUser.id !== userId) {
         return res.status(400).json({
           error: "Email is already taken",
@@ -126,14 +140,17 @@ router.put("/profile", verifyToken, async (req, res) => {
     if (name) updateData.name = name;
     if (email) updateData.email = email.toLowerCase();
 
-    const updatedUser = updateUser(userId, updateData);
+    const [updatedRows] = await db.User.update(updateData, {
+      where: { id: userId },
+    });
 
-    if (!updatedUser) {
+    if (updatedRows === 0) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = updatedUser;
+    // Get updated user
+    const updatedUser = await db.User.findByPk(userId);
+    const { password: _, ...userWithoutPassword } = updatedUser.toJSON();
 
     res.json({
       message: "Profile updated successfully",
@@ -164,28 +181,24 @@ router.put("/change-password", verifyToken, async (req, res) => {
     }
 
     // Get user with password
-    const user = getUserById(userId);
+    const user = await db.User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Verify current password
-    const isValidPassword = await bcrypt.compare(
-      currentPassword,
-      user.password
-    );
+    // Verify current password (plain text comparison for development)
+    const isValidPassword = currentPassword === user.password;
     if (!isValidPassword) {
       return res.status(400).json({ error: "Current password is incorrect" });
     }
 
-    // Hash new password
-    const saltRounds = 10;
-    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+    // Update password (store as plain text for development)
+    const [updatedRows] = await db.User.update(
+      { password: newPassword },
+      { where: { id: userId } }
+    );
 
-    // Update password
-    const updatedUser = updateUser(userId, { password: hashedNewPassword });
-
-    if (!updatedUser) {
+    if (updatedRows === 0) {
       return res.status(500).json({ error: "Failed to update password" });
     }
 
@@ -199,16 +212,17 @@ router.put("/change-password", verifyToken, async (req, res) => {
 });
 
 // Admin: Get all users
-router.get("/users", verifyToken, requireAdmin, (req, res) => {
-  const users = getUsers();
+router.get("/users", verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const users = await db.User.findAll({
+      attributes: { exclude: ["password"] }, // Exclude password from response
+    });
 
-  // Remove passwords from response
-  const usersWithoutPasswords = users.map((user) => {
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  });
-
-  res.json(usersWithoutPasswords);
+    res.json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ error: "Failed to fetch users" });
+  }
 });
 
 // Logout (mainly for client-side token removal)
