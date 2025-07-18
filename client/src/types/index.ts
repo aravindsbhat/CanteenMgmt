@@ -20,22 +20,32 @@ export interface MenuItem {
 
 export interface OrderItem {
   id: string;
-  name: string;
-  price: number;
+  orderId: string;
+  menuItemId: string;
   quantity: number;
-  subtotal: number;
+  price: number;
+  createdAt: string;
+  updatedAt: string;
+  menuItem?: {
+    id: string;
+    name: string;
+    price: number;
+  };
 }
 
 export interface Order {
   id: string;
-  customerId: string;
-  customerName: string;
-  customerEmail: string;
-  items: OrderItem[];
-  totalAmount: number;
+  userId: string;
+  total: number;
   status: 'confirmed' | 'preparing' | 'ready' | 'delivered' | 'cancelled';
-  orderTime: string;
-  estimatedDelivery: string;
+  createdAt: string;
+  updatedAt: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  items?: OrderItem[];
 }
 
 export interface CartItem {

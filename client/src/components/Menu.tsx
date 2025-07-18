@@ -179,6 +179,16 @@ const Menu: React.FC = () => {
                 <span>Welcome, {user?.name}</span>
               </div>
               
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors"
+                >
+                  <User className="h-4 w-4" />
+                  <span>Admin Panel</span>
+                </button>
+              )}
+              
               <button
                 onClick={handleLogout}
                 className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"

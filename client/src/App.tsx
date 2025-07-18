@@ -5,6 +5,7 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
 import Menu from './components/Menu';
+import Admin from './components/Admin';
 //import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -20,6 +21,11 @@ function App() {
             <Route path="/menu" element={
               // <ProtectedRoute>
                 <Menu />
+              // </ProtectedRoute>
+            } />
+            <Route path="/admin" element={
+              // <ProtectedRoute>
+                <Admin />
               // </ProtectedRoute>
             } />
           </Routes>
